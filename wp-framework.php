@@ -43,7 +43,7 @@ if (file_exists(WP_FRAMEWORK_PLUGIN_DIR . 'vendor/autoload.php')) {
 }
 
 // بارگذاری فایل‌های Helper
-require_once CUSTOM_EXPERTS_PLUGIN_DIR . 'includes/functions.php';
+require_once WP_FRAMEWORK_PLUGIN_DIR . 'includes/functions.php';
 
 /**
  * کلاس اصلی پلاگین

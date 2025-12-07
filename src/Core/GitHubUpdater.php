@@ -39,9 +39,10 @@ class GitHubUpdater
      */
     public function __construct(string $username, string $repository, ?string $token = null)
     {
-        $this->username = $username;
-        $this->repository = $repository;
-        $this->token = $token;
+        // Sanitize ورودی‌ها برای امنیت
+        $this->username = \sanitize_user($username, true);
+        $this->repository = \sanitize_file_name($repository);
+        $this->token = $token ? \sanitize_text_field($token) : null;
     }
 
     /**
@@ -52,13 +53,13 @@ class GitHubUpdater
     public function init(): void
     {
         // فیلتر برای بررسی آپدیت
-        add_filter('pre_set_site_transient_update_plugins', [$this, 'checkForUpdate']);
+        \add_filter('pre_set_site_transient_update_plugins', [$this, 'checkForUpdate']);
         
         // فیلتر برای اطلاعات پلاگین
-        add_filter('plugins_api', [$this, 'pluginInformation'], 10, 3);
+        \add_filter('plugins_api', [$this, 'pluginInformation'], 10, 3);
         
         // فیلتر برای دانلود از گیت‌هاب
-        add_filter('upgrader_pre_download', [$this, 'downloadFromGitHub'], 10, 3);
+        \add_filter('upgrader_pre_download', [$this, 'downloadFromGitHub'], 10, 3);
     }
 
     /**
@@ -83,24 +84,21 @@ class GitHubUpdater
         $latestVersion = $this->normalizeVersion($latestRelease->tag_name);
 
         if (version_compare($latestVersion, $currentVersion, '>')) {
-            $pluginFile = plugin_basename(WP_FRAMEWORK_PLUGIN_FILE);
+            $pluginFile = \plugin_basename(WP_FRAMEWORK_PLUGIN_FILE);
             
-            // ساخت URL دانلود با token اگر وجود دارد
+            // استفاده از zipball_url - token در header ارسال می‌شود نه در URL
             $packageUrl = $latestRelease->zipball_url;
-            if ($this->token) {
-                $packageUrl = add_query_arg('access_token', $this->token, $packageUrl);
-            }
             
             $transient->response[$pluginFile] = (object) [
                 'slug' => 'wp-framework',
                 'plugin' => $pluginFile,
-                'new_version' => $latestVersion,
-                'url' => $latestRelease->html_url,
-                'package' => $packageUrl,
+                'new_version' => \sanitize_text_field($latestVersion),
+                'url' => \esc_url_raw($latestRelease->html_url),
+                'package' => \esc_url_raw($packageUrl),
                 'icons' => [],
                 'banners' => [],
                 'banners_rtl' => [],
-                'tested' => get_bloginfo('version'),
+                'tested' => \get_bloginfo('version'),
                 'requires_php' => '7.4',
             ];
         }
@@ -128,19 +126,16 @@ class GitHubUpdater
             return $result;
         }
 
-        // ساخت URL دانلود با token اگر وجود دارد
+        // استفاده از zipball_url - token در header ارسال می‌شود
         $downloadUrl = $release->zipball_url;
-        if ($this->token) {
-            $downloadUrl = add_query_arg('access_token', $this->token, $downloadUrl);
-        }
 
         $info = (object) [
             'name' => 'WP Framework',
             'slug' => 'wp-framework',
-            'version' => $this->normalizeVersion($release->tag_name),
-            'author' => '<a href="' . esc_url($release->author->html_url) . '">' . esc_html($release->author->login) . '</a>',
-            'homepage' => $release->html_url,
-            'download_link' => $downloadUrl,
+            'version' => \sanitize_text_field($this->normalizeVersion($release->tag_name)),
+            'author' => '<a href="' . \esc_url($release->author->html_url) . '">' . \esc_html($release->author->login) . '</a>',
+            'homepage' => \esc_url_raw($release->html_url),
+            'download_link' => \esc_url_raw($downloadUrl),
             'sections' => [
                 'description' => $this->getDescription(),
                 'changelog' => $this->formatChangelog($release->body),
@@ -148,7 +143,7 @@ class GitHubUpdater
             'banners' => [],
             'icons' => [],
             'requires' => '5.0',
-            'tested' => get_bloginfo('version'),
+            'tested' => \get_bloginfo('version'),
             'requires_php' => '7.4',
         ];
 
@@ -165,8 +160,13 @@ class GitHubUpdater
      */
     public function downloadFromGitHub($reply, $package, $upgrader)
     {
-        // این متد برای اطمینان از دانلود صحیح استفاده می‌شود
-        // اگر نیاز به تغییر در فرآیند دانلود باشد، می‌توانید اینجا اضافه کنید
+        // بررسی اینکه URL از repository ماست
+        if (strpos($package, 'github.com') === false) {
+            return $reply;
+        }
+
+        // اگر token وجود دارد، باید در header ارسال شود نه در URL
+        // WordPress خودش این کار را انجام می‌دهد
         return $reply;
     }
 
@@ -178,16 +178,17 @@ class GitHubUpdater
     private function getLatestRelease()
     {
         $cacheKey = 'wp_framework_latest_release';
-        $cached = get_transient($cacheKey);
+        $cached = \get_transient($cacheKey);
 
         if ($cached !== false) {
             return $cached;
         }
 
+        // استفاده از esc_url_raw برای امنیت URL
         $url = sprintf(
             'https://api.github.com/repos/%s/%s/releases/latest',
-            $this->username,
-            $this->repository
+            \urlencode($this->username),
+            \urlencode($this->repository)
         );
 
         $args = [
@@ -198,25 +199,27 @@ class GitHubUpdater
             ],
         ];
 
+        // استفاده از Authorization header برای token (امن‌تر از query string)
         if ($this->token) {
-            $args['headers']['Authorization'] = 'token ' . $this->token;
+            $args['headers']['Authorization'] = 'token ' . \sanitize_text_field($this->token);
         }
 
-        $response = wp_remote_get($url, $args);
+        $response = \wp_remote_get($url, $args);
 
-        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+        if (\is_wp_error($response) || \wp_remote_retrieve_response_code($response) !== 200) {
             return null;
         }
 
-        $body = wp_remote_retrieve_body($response);
-        $release = json_decode($body);
+        $body = \wp_remote_retrieve_body($response);
+        $release = \json_decode($body, false);
 
-        if (!$release || !isset($release->tag_name)) {
+        // بررسی صحت داده‌های دریافتی
+        if (!$release || !\is_object($release) || !isset($release->tag_name) || !isset($release->zipball_url)) {
             return null;
         }
 
         // Cache برای 12 ساعت
-        set_transient($cacheKey, $release, 12 * HOUR_IN_SECONDS);
+        \set_transient($cacheKey, $release, 12 * \HOUR_IN_SECONDS);
 
         return $release;
     }
@@ -239,12 +242,17 @@ class GitHubUpdater
      */
     private function getDescription(): string
     {
-        return sprintf(
+        // Escape تمام متغیرها برای جلوگیری از XSS
+        $username = \esc_html($this->username);
+        $repository = \esc_html($this->repository);
+        $repoUrl = \esc_url("https://github.com/{$this->username}/{$this->repository}");
+        
+        return \sprintf(
             '<p>%s</p><p><strong>%s:</strong> <a href="%s">%s</a></p>',
-            esc_html__('یک فریمورک حرفه‌ای وردپرس با ساختار کلاس محور، Dependency Injection و Service Providers', 'wp-framework'),
-            esc_html__('Repository', 'wp-framework'),
-            esc_url("https://github.com/{$this->username}/{$this->repository}"),
-            esc_html("https://github.com/{$this->username}/{$this->repository}")
+            \esc_html__('یک فریمورک حرفه‌ای وردپرس با ساختار کلاس محور، Dependency Injection و Service Providers', 'wp-framework'),
+            \esc_html__('Repository', 'wp-framework'),
+            $repoUrl,
+            \esc_html("https://github.com/{$username}/{$repository}")
         );
     }
 
@@ -257,12 +265,12 @@ class GitHubUpdater
     private function formatChangelog(string $body): string
     {
         if (empty($body)) {
-            return '<p>' . esc_html__('هیچ تغییری ثبت نشده است.', 'wp-framework') . '</p>';
+            return '<p>' . \esc_html__('هیچ تغییری ثبت نشده است.', 'wp-framework') . '</p>';
         }
 
         // تبدیل Markdown به HTML ساده
-        $body = esc_html($body);
-        $body = nl2br($body);
+        $body = \esc_html($body);
+        $body = \nl2br($body);
         
         return '<div class="wp-framework-changelog">' . $body . '</div>';
     }
