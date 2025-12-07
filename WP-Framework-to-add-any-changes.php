@@ -1,12 +1,12 @@
 <?php
 /**
- * Plugin Name: WP Framework
+ * Plugin Name: WP Framework to add any changes
  * Plugin URI: https://github.com/your-username/wp-framework
  * Description: یک فریمورک حرفه‌ای وردپرس با ساختار کلاس محور، Dependency Injection و Service Providers - مشابه لاراول
  * Version: 1.0.0
- * Author: Your Name
+ * Author: Hassan Ali Askari
  * Author URI: https://example.com
- * Text Domain: wp-framework
+ * Text Domain: wp-framework-to-add-any-changes
  * Domain Path: /languages
  * Requires at least: 5.0
  * Requires PHP: 7.4
@@ -43,7 +43,7 @@ if (file_exists(WP_FRAMEWORK_PLUGIN_DIR . 'vendor/autoload.php')) {
 }
 
 // بارگذاری فایل‌های Helper
-require_once CUSTOM_EXPERTS_PLUGIN_DIR . 'includes/functions.php';
+require_once WP_FRAMEWORK_PLUGIN_DIR . 'includes/functions.php';
 
 /**
  * کلاس اصلی پلاگین
