@@ -28,5 +28,20 @@ return [
     'aliases' => [
         // 'App' => \WPFramework\Core\Application::class,
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | GitHub Auto-Updater
+    |--------------------------------------------------------------------------
+    |
+    | تنظیمات برای آپدیت خودکار از گیت‌هاب
+    | برای غیرفعال کردن، username و repository را خالی بگذارید
+    |
+    */
+    'github' => [
+        'username' => 'your-username',      // نام کاربری گیت‌هاب
+        'repository' => 'wp-framework',      // نام repository
+        'token' => '',                       // GitHub Personal Access Token (اختیاری - برای private repos)
+    ],
 ];
 

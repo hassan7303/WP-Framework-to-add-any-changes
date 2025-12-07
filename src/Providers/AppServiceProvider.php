@@ -3,6 +3,7 @@
 namespace WPFramework\Providers;
 
 use WPFramework\Core\ServiceProvider;
+use WPFramework\Core\GitHubUpdater;
 use WPFramework\Services\ExampleService;
 
 /**
@@ -32,8 +33,33 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // راه‌اندازی Auto-Updater از گیت‌هاب
+        $this->initAutoUpdater();
+
         // ثبت Action و Filter های وردپرس
         $this->registerHooks();
+    }
+
+    /**
+     * راه‌اندازی Auto-Updater
+     *
+     * @return void
+     */
+    private function initAutoUpdater(): void
+    {
+        $githubConfig = $this->app->getConfig('github', []);
+
+        if (empty($githubConfig['username']) || empty($githubConfig['repository'])) {
+            return;
+        }
+
+        $updater = new GitHubUpdater(
+            $githubConfig['username'],
+            $githubConfig['repository'],
+            $githubConfig['token'] ?? null
+        );
+
+        $updater->init();
     }
 
     /**
