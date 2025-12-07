@@ -1,0 +1,16 @@
+/**
+ * استایل‌های Admin پلاگین
+ */
+
+.custom-experts-admin {
+    padding: 20px;
+}
+
+.custom-experts-admin h1 {
+    margin-bottom: 20px;
+}
+
+.custom-experts-admin .notice {
+    margin: 20px 0;
+}
+
